@@ -1,0 +1,38 @@
+{
+  "name": "cancelkit",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "node widget/build.mjs && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "build:widget": "node widget/build.mjs"
+  },
+  "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.0.10",
+    "@sentry/nextjs": "^10.63.0",
+    "convex": "^1.42.1",
+    "jose": "^6.2.3",
+    "next": "16.2.10",
+    "posthog-js": "^1.396.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "resend": "^6.16.0",
+    "stripe": "^22.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "esbuild": "^0.28.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.5",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}

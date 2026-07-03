@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /install
+Disallow: /billing
+Disallow: /preview
+Disallow: /embed
+Disallow: /api/
+
+Sitemap: https://cancelkit.com/sitemap.xml

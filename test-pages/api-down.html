@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><title>Acme — double include + selector config</title></head>
+<body>
+  <h1>Acme account settings</h1>
+  <a href="native-cancel.html" class="my-cancel-btn">Cancel subscription</a>
+  <script src="http://localhost:3000/v1/cancelkit.js"
+    data-account="ck_pub_devtest000000000000"
+    data-customer="cus_test1"
+    data-selector=".my-cancel-btn"
+    data-hmac="deadbeef"></script>
+  <script src="http://localhost:3000/v1/cancelkit.js"
+    data-account="ck_pub_devtest000000000000"
+    data-customer="cus_test1"
+    data-hmac="deadbeef"></script>
+</body>
+</html>

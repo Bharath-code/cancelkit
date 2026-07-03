@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head><title>Acme — React SPA with client router</title></head>
+<body>
+  <div id="root"></div>
+  <script src="http://localhost:3000/v1/cancelkit.js"
+    data-account="ck_pub_devtest000000000000"
+    data-customer="cus_test1"
+    data-hmac="bcc4f9f11600de37dcd1e98dacc413c3ec44e447a6fda637932bc8a94d5fce90"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script>
+    const e = React.createElement;
+    function App() {
+      const [route, setRoute] = React.useState('home');
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 200); return () => clearInterval(t); }, []);
+      return e('div', null,
+        e('nav', null,
+          e('button', { onClick: () => setRoute('home') }, 'Home'),
+          e('button', { onClick: () => setRoute('billing') }, 'Billing')
+        ),
+        route === 'billing'
+          ? e('a', { href: 'native-cancel.html', 'data-cancelkit-trigger': true, key: tick }, 'Cancel subscription')
+          : e('p', null, 'Client-routed home. tick=' + tick)
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+  </script>
+</body>
+</html>

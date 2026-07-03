@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><title>Acme — SPA re-render survival</title></head>
+<body>
+  <div id="app"></div>
+  <script src="http://localhost:3000/v1/cancelkit.js"
+    data-account="ck_pub_devtest000000000000"
+    data-customer="cus_test1"
+    data-hmac="deadbeef"></script>
+  <script>
+    // simulate an SPA: trigger element is destroyed and recreated after load
+    function render() {
+      document.getElementById('app').innerHTML =
+        '<a href="native-cancel.html" data-cancelkit-trigger>Cancel subscription</a>';
+    }
+    render();
+    setTimeout(render, 100); // re-render wipes and recreates the node
+  </script>
+</body>
+</html>

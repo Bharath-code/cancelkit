@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* CancelKit design tokens — source of truth: docs/design.md. Light mode only. */
+@theme {
+  --color-primary: #16181d;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #2a2e38;
+  --color-primary-disabled: #c9cbd1;
+  --color-accent: #4353ff;
+  --color-on-accent: #ffffff;
+  --color-background: #fafaf9;
+  --color-surface: #ffffff;
+  --color-on-surface: #16181d;
+  --color-muted: #5c616b;
+  --color-border: #e4e4e7;
+  --color-success: #0f9960;
+  --color-on-success: #ffffff;
+  --color-success-surface: #e7f6ef;
+  --color-warning: #b45309;
+  --color-warning-surface: #fdf3e7;
+  --color-error: #dc2626;
+  --color-error-surface: #fdecec;
+  --color-info: #2563eb;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* modal is the single shadowed element in the system */
+  --shadow-modal: 0 8px 30px rgba(22, 24, 29, 0.12);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* stat numbers always use tabular numerals */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

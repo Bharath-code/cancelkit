@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head><title>Acme — Turbolinks/HTMX-style body swap</title></head>
+<body>
+  <div id="page">
+    <p>Loading…</p>
+  </div>
+  <script src="http://localhost:3000/v1/cancelkit.js"
+    data-account="ck_pub_devtest000000000000"
+    data-customer="cus_test1"
+    data-hmac="bcc4f9f11600de37dcd1e98dacc413c3ec44e447a6fda637932bc8a94d5fce90"></script>
+  <script>
+    // Turbolinks/HTMX pattern: whole content region replaced via innerHTML
+    // after "navigation" — original DOM (and any per-element bindings) gone.
+    setTimeout(() => {
+      document.getElementById('page').innerHTML =
+        '<h1>Account</h1><a href="native-cancel.html" data-cancelkit-trigger>Cancel subscription</a>';
+    }, 150);
+  </script>
+</body>
+</html>

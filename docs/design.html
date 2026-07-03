@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CancelKit Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* colors */
+  --color-primary: #16181D;
+  --color-on-primary: #FFFFFF;
+  --color-accent: #4353FF;
+  --color-on-accent: #FFFFFF;
+  --color-background: #FAFAF9;
+  --color-surface: #FFFFFF;
+  --color-on-surface: #16181D;
+  --color-on-surface-muted: #5C616B;
+  --color-border: #E4E4E7;
+  --color-success: #0F9960;
+  --color-on-success: #FFFFFF;
+  --color-success-surface: #E7F6EF;
+  --color-warning: #B45309;
+  --color-warning-surface: #FDF3E7;
+  --color-error: #DC2626;
+  --color-error-surface: #FDECEC;
+  --color-info: #2563EB;
+
+  /* typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --type-display-size: 48px; --type-display-weight: 700; --type-display-lh: 1.1; --type-display-ls: -0.02em;
+  --type-h1-size: 32px; --type-h1-weight: 700; --type-h1-lh: 1.2; --type-h1-ls: -0.01em;
+  --type-h2-size: 24px; --type-h2-weight: 600; --type-h2-lh: 1.25;
+  --type-h3-size: 18px; --type-h3-weight: 600; --type-h3-lh: 1.4;
+  --type-body-size: 16px; --type-body-weight: 400; --type-body-lh: 1.6;
+  --type-body-sm-size: 14px; --type-body-sm-weight: 400; --type-body-sm-lh: 1.5;
+  --type-caption-size: 12px; --type-caption-weight: 500; --type-caption-lh: 1.4; --type-caption-ls: 0.02em;
+  --type-stat-size: 40px; --type-stat-weight: 700; --type-stat-lh: 1.1; --type-stat-ls: -0.02em;
+  --type-mono-size: 14px; --type-mono-weight: 400; --type-mono-lh: 1.5;
+
+  /* rounded */
+  --rounded-sm: 4px;
+  --rounded-md: 8px;
+  --rounded-lg: 12px;
+  --rounded-full: 9999px;
+
+  /* spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* elevation */
+  --shadow-modal: 0 8px 30px rgba(22,24,29,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-lh);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  padding: var(--space-2xl) var(--space-lg);
+}
+.page { max-width: 1080px; margin: 0 auto; }
+
+/* guide chrome */
+.guide-header { margin-bottom: var(--space-3xl); }
+.guide-header h1 { font-size: var(--type-display-size); font-weight: var(--type-display-weight); line-height: var(--type-display-lh); letter-spacing: var(--type-display-ls); }
+.guide-header p { color: var(--color-on-surface-muted); margin-top: var(--space-sm); max-width: 720px; }
+.guide-note { font-size: var(--type-body-sm-size); color: var(--color-on-surface-muted); margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px solid var(--color-border); border-radius: var(--rounded-md); background: var(--color-surface); display: inline-block; }
+section { margin-bottom: var(--space-3xl); }
+section > h2 { font-size: var(--type-h2-size); font-weight: var(--type-h2-weight); line-height: var(--type-h2-lh); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-sm); margin-bottom: var(--space-lg); }
+section > h3 { font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); margin: var(--space-lg) 0 var(--space-md); }
+.token-label { font-family: var(--font-mono); font-size: var(--type-caption-size); color: var(--color-on-surface-muted); }
+.grid { display: grid; gap: var(--space-md); }
+.grid-4 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+
+/* colors */
+.swatch { border: 1px solid var(--color-border); border-radius: var(--rounded-md); overflow: hidden; background: var(--color-surface); }
+.swatch .chip { height: 72px; display: flex; align-items: flex-end; padding: var(--space-sm) var(--space-md); font-size: var(--type-body-sm-size); font-weight: 500; }
+.swatch .meta { padding: var(--space-sm) var(--space-md); display: flex; justify-content: space-between; gap: var(--space-sm); }
+
+/* typography */
+.specimen { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-lg); align-items: baseline; padding: var(--space-md) 0; border-bottom: 1px solid var(--color-border); }
+.specimen .spec { font-size: var(--type-caption-size); color: var(--color-on-surface-muted); line-height: 1.6; }
+.t-display { font-size: var(--type-display-size); font-weight: var(--type-display-weight); line-height: var(--type-display-lh); letter-spacing: var(--type-display-ls); }
+.t-h1 { font-size: var(--type-h1-size); font-weight: var(--type-h1-weight); line-height: var(--type-h1-lh); letter-spacing: var(--type-h1-ls); }
+.t-h2 { font-size: var(--type-h2-size); font-weight: var(--type-h2-weight); line-height: var(--type-h2-lh); }
+.t-h3 { font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); line-height: var(--type-h3-lh); }
+.t-body { font-size: var(--type-body-size); font-weight: var(--type-body-weight); line-height: var(--type-body-lh); }
+.t-body-sm { font-size: var(--type-body-sm-size); font-weight: var(--type-body-sm-weight); line-height: var(--type-body-sm-lh); }
+.t-caption { font-size: var(--type-caption-size); font-weight: var(--type-caption-weight); line-height: var(--type-caption-lh); letter-spacing: var(--type-caption-ls); }
+.t-stat { font-size: var(--type-stat-size); font-weight: var(--type-stat-weight); line-height: var(--type-stat-lh); letter-spacing: var(--type-stat-ls); font-feature-settings: 'tnum'; }
+.t-mono { font-family: var(--font-mono); font-size: var(--type-mono-size); font-weight: var(--type-mono-weight); line-height: var(--type-mono-lh); }
+
+/* spacing */
+.space-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+.space-row .bar { background: var(--color-accent); height: 20px; border-radius: 2px; }
+.space-row .token-label { width: 140px; }
+
+/* radius */
+.radius-row { display: flex; gap: var(--space-lg); flex-wrap: wrap; }
+.radius-box { width: 120px; height: 80px; background: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; }
+
+/* elevation */
+.elev-row { display: flex; gap: var(--space-lg); flex-wrap: wrap; }
+.elev-card { width: 240px; padding: var(--space-lg); border-radius: var(--rounded-lg); background: var(--color-surface); }
+
+/* components */
+.demo-block { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--rounded-lg); padding: var(--space-lg); display: flex; gap: var(--space-lg); flex-wrap: wrap; align-items: flex-start; margin-bottom: var(--space-md); }
+.demo-item { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.btn { font-family: var(--font-sans); font-size: var(--type-body-sm-size); font-weight: 500; height: 40px; padding: 10px 20px; border-radius: var(--rounded-md); border: none; cursor: pointer; }
+.btn-primary { background: var(--color-primary); color: var(--color-on-primary); }
+.btn-primary:hover, .btn-primary.is-hover { background: #2A2E38; }
+.btn-primary:disabled { background: #C9CBD1; color: var(--color-surface); cursor: default; }
+.btn-secondary { background: var(--color-surface); color: var(--color-on-surface); border: 1px solid var(--color-border); }
+.btn-secondary:hover, .btn-secondary.is-hover { background: var(--color-background); }
+.btn-cancel-ghost { background: transparent; color: var(--color-on-surface-muted); }
+.btn-cancel-ghost:hover { text-decoration: underline; }
+
+.input { font-family: var(--font-sans); font-size: var(--type-body-size); height: 40px; padding: 10px 12px; border-radius: var(--rounded-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-on-surface); width: 260px; }
+.input.is-focus { border-color: var(--color-accent); outline: none; box-shadow: 0 0 0 3px rgba(67,83,255,0.18); }
+.input.is-error { border-color: var(--color-error); }
+.input-msg-error { font-size: var(--type-body-sm-size); color: var(--color-error); }
+
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--rounded-lg); padding: var(--space-lg); width: 280px; }
+.stat-card .stat-label { font-size: var(--type-caption-size); font-weight: var(--type-caption-weight); letter-spacing: var(--type-caption-ls); color: var(--color-on-surface-muted); text-transform: uppercase; margin-bottom: var(--space-xs); }
+.stat-card .stat-value { font-size: var(--type-stat-size); font-weight: var(--type-stat-weight); line-height: var(--type-stat-lh); letter-spacing: var(--type-stat-ls); font-feature-settings: 'tnum'; }
+.stat-value.is-saved { color: var(--color-success); }
+
+.badge { display: inline-block; font-size: var(--type-caption-size); font-weight: var(--type-caption-weight); letter-spacing: var(--type-caption-ls); padding: 4px 10px; border-radius: var(--rounded-full); }
+.badge-success { background: var(--color-success-surface); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-surface); color: var(--color-warning); }
+
+.modal-demo-wrap { background: repeating-linear-gradient(45deg, #F0F0EE, #F0F0EE 10px, #E8E8E6 10px, #E8E8E6 20px); border-radius: var(--rounded-lg); padding: var(--space-2xl); display: flex; justify-content: center; }
+.modal { background: var(--color-surface); color: var(--color-on-surface); border-radius: var(--rounded-lg); padding: var(--space-xl); width: 480px; max-width: 100%; box-shadow: var(--shadow-modal); }
+.modal h4 { font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); margin-bottom: var(--space-sm); }
+.modal p { font-size: var(--type-body-sm-size); color: var(--color-on-surface-muted); margin-bottom: var(--space-md); }
+.modal .offer { border: 1px solid var(--color-border); border-radius: var(--rounded-md); padding: var(--space-md); margin-bottom: var(--space-md); }
+.modal .offer strong { display: block; margin-bottom: var(--space-xs); }
+.modal .actions { display: flex; gap: var(--space-sm); align-items: center; justify-content: space-between; }
+
+.code-block { font-family: var(--font-mono); font-size: var(--type-mono-size); line-height: var(--type-mono-lh); background: var(--color-primary); color: #D6D8DE; border-radius: var(--rounded-sm); padding: var(--space-md); overflow-x: auto; }
+
+/* dos & donts */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+@media (max-width: 720px) { .dd-grid { grid-template-columns: 1fr; } .specimen { grid-template-columns: 1fr; } }
+.dd-col { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--rounded-lg); padding: var(--space-lg); }
+.dd-col h3 { margin: 0 0 var(--space-md); font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); }
+.dd-col.do h3 { color: var(--color-success); }
+.dd-col.dont h3 { color: var(--color-error); }
+.dd-col ul { list-style: none; }
+.dd-col li { font-size: var(--type-body-sm-size); line-height: var(--type-body-sm-lh); padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-border); }
+.dd-col li:last-child { border-bottom: none; }
+.dd-col li::before { margin-right: var(--space-sm); font-weight: 700; }
+.dd-col.do li::before { content: "✓"; color: var(--color-success); }
+.dd-col.dont li::before { content: "✗"; color: var(--color-error); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="guide-header">
+    <h1>CancelKit Design System</h1>
+    <p>Design system for CancelKit — a Stripe-connected cancellation widget and founder dashboard, built to feel like a sharp operator's tool.</p>
+    <div class="guide-note">This file is the human-readable mirror of <code>docs/design.md</code> (the source of truth for coding agents). Both update together.</div>
+  </header>
+
+  <section>
+    <h2>Colors</h2>
+    <h3>Core</h3>
+    <div class="grid grid-4">
+      <div class="swatch"><div class="chip" style="background:var(--color-primary);color:var(--color-on-primary)">on-primary text</div><div class="meta"><span class="token-label">primary</span><span class="token-label">#16181D</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-accent);color:var(--color-on-accent)">on-accent text</div><div class="meta"><span class="token-label">accent</span><span class="token-label">#4353FF</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-background);color:var(--color-on-surface)">on-surface text</div><div class="meta"><span class="token-label">background</span><span class="token-label">#FAFAF9</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-surface);color:var(--color-on-surface)">on-surface text</div><div class="meta"><span class="token-label">surface</span><span class="token-label">#FFFFFF</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-surface);color:var(--color-on-surface-muted)">muted text</div><div class="meta"><span class="token-label">on-surface-muted</span><span class="token-label">#5C616B</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-border);color:var(--color-on-surface)">border</div><div class="meta"><span class="token-label">border</span><span class="token-label">#E4E4E7</span></div></div>
+    </div>
+    <h3>Semantic states</h3>
+    <div class="grid grid-4">
+      <div class="swatch"><div class="chip" style="background:var(--color-success);color:var(--color-on-success)">customer saved</div><div class="meta"><span class="token-label">success</span><span class="token-label">#0F9960</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-success-surface);color:var(--color-success)">save badge</div><div class="meta"><span class="token-label">success-surface</span><span class="token-label">#E7F6EF</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-warning);color:#FFFFFF">warning</div><div class="meta"><span class="token-label">warning</span><span class="token-label">#B45309</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-warning-surface);color:var(--color-warning)">warning badge</div><div class="meta"><span class="token-label">warning-surface</span><span class="token-label">#FDF3E7</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-error);color:#FFFFFF">billing error</div><div class="meta"><span class="token-label">error</span><span class="token-label">#DC2626</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-error-surface);color:var(--color-error)">error callout</div><div class="meta"><span class="token-label">error-surface</span><span class="token-label">#FDECEC</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--color-info);color:#FFFFFF">info</div><div class="meta"><span class="token-label">info</span><span class="token-label">#2563EB</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Typography</h2>
+    <div class="specimen"><div class="spec">display<br>Inter · 48px · 700 · 1.1 · -0.02em</div><div class="t-display">Live in 5 minutes.</div></div>
+    <div class="specimen"><div class="spec">h1<br>Inter · 32px · 700 · 1.2 · -0.01em</div><div class="t-h1">One saved customer pays for the year</div></div>
+    <div class="specimen"><div class="spec">h2<br>Inter · 24px · 600 · 1.25</div><div class="t-h2">Saved revenue this month</div></div>
+    <div class="specimen"><div class="spec">h3<br>Inter · 18px · 600 · 1.4</div><div class="t-h3">Exit reasons, ranked</div></div>
+    <div class="specimen"><div class="spec">body<br>Inter · 16px · 400 · 1.6</div><div class="t-body">Every cancel click becomes a pause, a discount acceptance, or at minimum a logged exit reason.</div></div>
+    <div class="specimen"><div class="spec">body-sm<br>Inter · 14px · 400 · 1.5</div><div class="t-body-sm">Scoped OAuth. Signed widget config. Idempotent webhooks.</div></div>
+    <div class="specimen"><div class="spec">caption<br>Inter · 12px · 500 · 1.4 · 0.02em</div><div class="t-caption">OFFERS ACCEPTED · LAST 30 DAYS</div></div>
+    <div class="specimen"><div class="spec">stat<br>Inter · 40px · 700 · 1.1 · -0.02em · tnum</div><div class="t-stat">$1,284/mo</div></div>
+    <div class="specimen"><div class="spec">mono<br>JetBrains Mono · 14px · 400 · 1.5</div><div class="t-mono">&lt;script src="https://cdn.cancelkit.com/v1.js" data-key="ck_live_…"&gt;&lt;/script&gt;</div></div>
+  </section>
+
+  <section>
+    <h2>Spacing</h2>
+    <div class="space-row"><span class="token-label">xs · 4px</span><div class="bar" style="width:var(--space-xs)"></div></div>
+    <div class="space-row"><span class="token-label">sm · 8px</span><div class="bar" style="width:var(--space-sm)"></div></div>
+    <div class="space-row"><span class="token-label">md · 16px</span><div class="bar" style="width:var(--space-md)"></div></div>
+    <div class="space-row"><span class="token-label">lg · 24px</span><div class="bar" style="width:var(--space-lg)"></div></div>
+    <div class="space-row"><span class="token-label">xl · 32px</span><div class="bar" style="width:var(--space-xl)"></div></div>
+    <div class="space-row"><span class="token-label">2xl · 48px</span><div class="bar" style="width:var(--space-2xl)"></div></div>
+    <div class="space-row"><span class="token-label">3xl · 64px</span><div class="bar" style="width:var(--space-3xl)"></div></div>
+  </section>
+
+  <section>
+    <h2>Radius</h2>
+    <div class="radius-row">
+      <div><div class="radius-box" style="border-radius:var(--rounded-sm)"></div><span class="token-label">sm · 4px — code blocks, small controls</span></div>
+      <div><div class="radius-box" style="border-radius:var(--rounded-md)"></div><span class="token-label">md · 8px — buttons, inputs</span></div>
+      <div><div class="radius-box" style="border-radius:var(--rounded-lg)"></div><span class="token-label">lg · 12px — cards, modal</span></div>
+      <div><div class="radius-box" style="border-radius:var(--rounded-full);width:80px"></div><span class="token-label">full — badges, dots</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Elevation &amp; Depth</h2>
+    <div class="elev-row">
+      <div class="elev-card" style="border:1px solid var(--color-border)">
+        <div class="t-body-sm"><strong>Default: border only</strong></div>
+        <div class="t-body-sm" style="color:var(--color-on-surface-muted)">1px border, no shadow. Cards, inputs, tables — flat and precise.</div>
+      </div>
+      <div class="elev-card" style="box-shadow:var(--shadow-modal)">
+        <div class="t-body-sm"><strong>Modal / widget overlay only</strong></div>
+        <div class="t-body-sm" style="color:var(--color-on-surface-muted)">0 8px 30px rgba(22,24,29,.12) — the single shadowed layer in the system.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Components</h2>
+
+    <h3>Buttons</h3>
+    <div class="demo-block">
+      <div class="demo-item"><button class="btn btn-primary">Connect Stripe</button><span class="token-label">button-primary</span></div>
+      <div class="demo-item"><button class="btn btn-primary is-hover">Connect Stripe</button><span class="token-label">button-primary-hover</span></div>
+      <div class="demo-item"><button class="btn btn-primary" disabled>Connect Stripe</button><span class="token-label">button-primary-disabled</span></div>
+      <div class="demo-item"><button class="btn btn-secondary">View stats</button><span class="token-label">button-secondary</span></div>
+      <div class="demo-item"><button class="btn btn-secondary is-hover">View stats</button><span class="token-label">button-secondary-hover</span></div>
+      <div class="demo-item"><button class="btn btn-cancel-ghost">Cancel anyway</button><span class="token-label">button-cancel-ghost — always visible, never shrunk</span></div>
+    </div>
+
+    <h3>Inputs</h3>
+    <div class="demo-block">
+      <div class="demo-item"><input class="input" placeholder="Coupon code" value=""><span class="token-label">input</span></div>
+      <div class="demo-item"><input class="input is-focus" value="SAVE20"><span class="token-label">input-focus</span></div>
+      <div class="demo-item"><input class="input is-error" value="EXPIRED10"><span class="input-msg-error">Stripe rejected the coupon (expired 06/12). Pick another.</span><span class="token-label">input-error</span></div>
+    </div>
+
+    <h3>Cards &amp; Stats</h3>
+    <div class="demo-block">
+      <div class="demo-item">
+        <div class="card stat-card"><div class="stat-label">Saved revenue · 30d</div><div class="stat-value is-saved">$1,284/mo</div></div>
+        <span class="token-label">stat (saved revenue → success color)</span>
+      </div>
+      <div class="demo-item">
+        <div class="card stat-card"><div class="stat-label">Offers shown</div><div class="stat-value">312</div></div>
+        <span class="token-label">stat</span>
+      </div>
+      <div class="demo-item">
+        <div class="card"><div class="t-h3" style="margin-bottom:var(--space-sm)">Top exit reason</div><div class="t-body-sm" style="color:var(--color-on-surface-muted)">"Too expensive" — 41% accept a pause offer.</div></div>
+        <span class="token-label">card</span>
+      </div>
+    </div>
+
+    <h3>Badges</h3>
+    <div class="demo-block">
+      <div class="demo-item"><span class="badge badge-success">Customer saved</span><span class="token-label">badge-success</span></div>
+      <div class="demo-item"><span class="badge badge-warning">Pause ends in 12 days</span><span class="token-label">badge-warning</span></div>
+    </div>
+
+    <h3>Modal — the widget container</h3>
+    <div class="modal-demo-wrap">
+      <div class="modal">
+        <h4>Before you go — keep your data, skip the bill</h4>
+        <p>Pause your subscription for 2 months. Nothing is deleted, billing stops today.</p>
+        <div class="offer">
+          <strong class="t-body-sm">Pause for 2 months — $0</strong>
+          <span class="t-body-sm" style="color:var(--color-on-surface-muted)">Resumes automatically on Sep 2.</span>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary">Pause instead</button>
+          <button class="btn btn-cancel-ghost">Cancel anyway</button>
+        </div>
+      </div>
+    </div>
+    <p class="t-body-sm" style="color:var(--color-on-surface-muted);margin-top:var(--space-sm)">modal · 480px · rounded-lg · the one shadowed element. "Cancel anyway" stays one click away in every state.</p>
+
+    <h3>Code / install moment</h3>
+    <div class="code-block">&lt;script src="https://cdn.cancelkit.com/v1.js" data-key="ck_live_…"&gt;&lt;/script&gt;</div>
+  </section>
+
+  <section>
+    <h2>Do's and Don'ts</h2>
+    <div class="dd-grid">
+      <div class="dd-col do">
+        <h3>Do</h3>
+        <ul>
+          <li>Lead every screen with a number the founder cares about, in the stat type level with tabular numerals.</li>
+          <li>Use success green for every save event and saved-revenue figure — the product's emotional payoff.</li>
+          <li>Keep one button-primary per view; everything else is secondary or ghost.</li>
+          <li>Write error states with the mechanism and the next step, in body-sm, using semantic colors.</li>
+          <li>Render anything copy-pasteable in mono inside an sm-radius block with a copy button.</li>
+          <li>Keep the widget's "Cancel anyway" path visible, enabled, and one click away in every flow state.</li>
+        </ul>
+      </div>
+      <div class="dd-col dont">
+        <h3>Don't</h3>
+        <ul>
+          <li>Don't add gradients, stock illustrations, testimonial carousels, or enterprise-marketing furniture.</li>
+          <li>Don't use more than one accent color per view, or accent for non-interactive decoration.</li>
+          <li>Don't shrink, hide, delay, or bury the subscriber's cancel path — no confirm-shaming copy, ever.</li>
+          <li>Don't add shadows to anything except the modal/widget overlay.</li>
+          <li>Don't introduce new typefaces, radius values, or off-scale spacing; extend the token scales instead.</li>
+          <li>Don't let any asset or animation delay the 10-second sandbox preview — the magic moment outranks polish.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
