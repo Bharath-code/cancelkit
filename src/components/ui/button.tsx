@@ -1,24 +1,24 @@
 import { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "secondary" | "cancel-ghost";
+type Variant = "primary" | "secondary" | "cancel-ghost" | "marigold";
 
-const variants: Record<Variant, string> = {
+export const buttonVariants: Record<Variant, string> = {
   primary:
     "bg-primary text-on-primary hover:bg-primary-hover disabled:bg-primary-disabled disabled:text-surface",
   secondary:
-    "bg-surface text-on-surface border border-border hover:bg-background",
-  "cancel-ghost": "bg-transparent text-muted hover:text-on-surface",
+    "bg-surface text-on-surface border border-border hover:border-ink/30 hover:bg-mist",
+  "cancel-ghost": "bg-transparent text-muted hover:text-on-surface underline-offset-4 hover:underline",
+  marigold:
+    "bg-marigold text-ink hover:bg-[#ffc233] shadow-[0_6px_20px_-6px_rgba(255,180,0,0.6)]",
 };
+
+export const buttonBase =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold leading-none transition-[background-color,border-color,transform,box-shadow] duration-150 active:translate-y-px disabled:cursor-not-allowed";
 
 export function Button({
   variant = "primary",
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
-  return (
-    <button
-      className={`h-10 rounded-md px-5 py-2.5 text-sm font-medium leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed ${variants[variant]} ${className}`}
-      {...props}
-    />
-  );
+  return <button className={`${buttonBase} ${buttonVariants[variant]} ${className}`} {...props} />;
 }

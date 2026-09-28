@@ -4,12 +4,14 @@ import { ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { stripeClient } from "./lib/stripeClient";
+import { subscriptionAmounts } from "./lib/mrr";
 
 export type SubscriptionAndOffer = {
   subscription: {
     id: string;
     planNickname: string;
-    amountCents: number;
+    amountCents: number; // per billing interval — what the subscriber sees
+    mrrCents: number; // monthly-normalized — what stats and emails sum
     currency: string;
     interval: string;
   };
@@ -47,7 +49,7 @@ export const fetchSubscriptionAndOffer = internalAction({
     // Most recent active subscription (PRD § 14 open question #4 default).
     const sub = [...subs.data].sort((a, b) => b.created - a.created)[0];
     const item = sub.items.data[0];
-    const amountCents = item?.price?.unit_amount ?? 0;
+    const { amountCents, mrrCents } = subscriptionAmounts(sub.items.data);
     const subscription = {
       id: sub.id,
       planNickname:
@@ -58,6 +60,7 @@ export const fetchSubscriptionAndOffer = internalAction({
           ? (item.price.product.name as string)
           : "your plan"),
       amountCents,
+      mrrCents,
       currency: sub.currency,
       interval: item?.price?.recurring?.interval ?? "month",
     };

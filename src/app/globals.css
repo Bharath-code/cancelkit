@@ -1,36 +1,70 @@
 @import "tailwindcss";
 
-/* CancelKit design tokens — source of truth: docs/design.md. Light mode only. */
+/* CancelKit tokens — "catch the cancel, never trap it". Light UI; ink panels
+   carry the brand. Jade = kept, slate = left (neutral, never alarming). */
 @theme {
-  --color-primary: #16181d;
-  --color-on-primary: #ffffff;
-  --color-primary-hover: #2a2e38;
-  --color-primary-disabled: #c9cbd1;
-  --color-accent: #4353ff;
-  --color-on-accent: #ffffff;
-  --color-background: #fafaf9;
-  --color-surface: #ffffff;
-  --color-on-surface: #16181d;
-  --color-muted: #5c616b;
-  --color-border: #e4e4e7;
-  --color-success: #0f9960;
-  --color-on-success: #ffffff;
-  --color-success-surface: #e7f6ef;
-  --color-warning: #b45309;
-  --color-warning-surface: #fdf3e7;
-  --color-error: #dc2626;
-  --color-error-surface: #fdecec;
-  --color-info: #2563eb;
+  --color-ink: #0f1e36;
+  --color-ink-soft: #1b2d4d;
+  --color-mist: #eef2f6;
+  --color-marigold: #ffb400;
+  --color-marigold-soft: #fff1cc;
+  --color-jade: #0b9a6d;
+  --color-slate-exit: #7c8a9e;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #0f1e36;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #1b2d4d;
+  --color-primary-disabled: #c3ccd8;
+  --color-accent: #2e4fd1;
+  --color-on-accent: #ffffff;
+  --color-background: #eef2f6;
+  --color-surface: #ffffff;
+  --color-on-surface: #0f1e36;
+  --color-muted: #52617a;
+  --color-border: #d8dfe8;
+  --color-success: #0b8a62;
+  --color-on-success: #ffffff;
+  --color-success-surface: #e2f5ee;
+  --color-warning: #9a5b00;
+  --color-warning-surface: #fff4d6;
+  --color-error: #c2372b;
+  --color-error-surface: #fdeceb;
+  --color-info: #2e4fd1;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-body), ui-sans-serif, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
 
-  /* modal is the single shadowed element in the system */
-  --shadow-modal: 0 8px 30px rgba(22, 24, 29, 0.12);
+  --shadow-modal: 0 24px 60px -12px rgba(15, 30, 54, 0.28), 0 2px 6px rgba(15, 30, 54, 0.08);
+  --shadow-lift: 0 1px 0 rgba(15, 30, 54, 0.04), 0 8px 24px -10px rgba(15, 30, 54, 0.18);
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-step: step-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  --animate-draw: draw 0.6s 0.1s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateX(18px); }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@keyframes draw {
+  from { stroke-dashoffset: var(--len, 60); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dash-flow {
+  to { stroke-dashoffset: -24; }
 }
 
 body {
@@ -41,7 +75,39 @@ body {
   line-height: 1.6;
 }
 
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+::selection { background: var(--color-marigold-soft); color: var(--color-ink); }
+
 /* stat numbers always use tabular numerals */
-.tnum {
-  font-variant-numeric: tabular-nums;
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* subtle dot grid for ink panels */
+.ink-grid {
+  background-color: var(--color-ink);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.flow-dash { stroke-dasharray: 4 8; animation: dash-flow 1.2s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .motion-only { display: none !important; }
 }

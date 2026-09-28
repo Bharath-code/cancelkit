@@ -30,7 +30,7 @@ export default function DemoPage({
   if (demo === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-ink" />
       </main>
     );
   }
@@ -86,8 +86,8 @@ export default function DemoPage({
         </a>
       </div>
 
-      <div className="rounded-lg border border-border bg-background p-4 sm:p-10">
-        <div className="mx-auto max-w-[480px] rounded-lg shadow-[0_8px_30px_rgba(22,24,29,0.12)]">
+      <div className="ink-grid rounded-xl p-4 sm:p-12">
+        <div className="mx-auto max-w-[480px] animate-rise rounded-xl shadow-[var(--shadow-modal)]">
           <CancelFlow
             key={flowKey}
             branding={{

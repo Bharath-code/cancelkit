@@ -59,11 +59,15 @@ export function PreviewFrame() {
   if (state === "loading") {
     return (
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <Card className="flex min-h-[420px] animate-pulse items-center justify-center">
-          <p className="text-sm text-muted">
-            Fetching your plans and coupons…
-          </p>
-        </Card>
+        <div className="ink-grid flex min-h-[460px] flex-col items-center justify-center gap-4 rounded-xl text-[#C9D3E1]">
+          <svg viewBox="0 0 48 48" className="h-12 w-12" aria-hidden="true" fill="none">
+            <circle cx="24" cy="24" r="18" stroke="rgba(255,255,255,0.15)" strokeWidth="4" />
+            <path d="M24 6a18 18 0 0 1 18 18" stroke="#FFB400" strokeWidth="4" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="0.9s" repeatCount="indefinite" />
+            </path>
+          </svg>
+          <p className="text-sm" role="status">Fetching your plans and coupons from Stripe…</p>
+        </div>
         <div />
       </div>
     );
@@ -82,7 +86,7 @@ export function PreviewFrame() {
             setState("loading");
             void load();
           }}
-          className="mt-4 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-on-primary hover:bg-primary-hover"
+          className="mt-4 rounded-full bg-primary px-6 py-3 text-[15px] font-semibold text-on-primary transition-colors hover:bg-primary-hover"
         >
           Retry
         </button>
@@ -102,7 +106,7 @@ export function PreviewFrame() {
         </p>
         <a
           href="/api/oauth/start"
-          className="mt-4 inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-on-primary hover:bg-primary-hover"
+          className="mt-4 inline-block rounded-full bg-primary px-6 py-3 text-[15px] font-semibold text-on-primary transition-colors hover:bg-primary-hover"
         >
           Reconnect Stripe
         </a>
@@ -162,8 +166,8 @@ export function PreviewFrame() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* device-style frame */}
-      <div className="rounded-lg border border-border bg-background p-4 sm:p-10">
-        <div className="mx-auto max-w-[480px] rounded-lg shadow-[0_8px_30px_rgba(22,24,29,0.12)]">
+      <div className="ink-grid rounded-xl p-4 sm:p-12">
+        <div className="mx-auto max-w-[480px] animate-rise rounded-xl shadow-[var(--shadow-modal)]">
           <CancelFlow
             key={flowKey}
             branding={{
@@ -183,7 +187,7 @@ export function PreviewFrame() {
       {/* right rail */}
       <div className="space-y-4">
         <Card>
-          <h2 className="text-lg font-semibold">This is your live data</h2>
+          <h2 className="text-lg font-semibold">Built from your Stripe account</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
             <li>
               <span className="tnum font-semibold text-on-surface">

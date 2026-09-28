@@ -20,21 +20,33 @@ export const tryInsertEvent = internalMutation({
   },
 });
 
+export const deleteEvent = internalMutation({
+  args: { stripeEventId: v.string() },
+  handler: async (ctx, { stripeEventId }) => {
+    const row = await ctx.db
+      .query("webhookEvents")
+      .withIndex("by_event_id", (q) => q.eq("stripeEventId", stripeEventId))
+      .unique();
+    if (row) await ctx.db.delete(row._id);
+    return null;
+  },
+});
+
 // subscription deleted (or reconciled to canceled): close any open sessions.
 export const closeOpenSessionsForSubscription = internalMutation({
   args: { stripeSubscriptionId: v.string() },
   handler: async (ctx, { stripeSubscriptionId }) => {
     const open = await ctx.db
       .query("cancelSessions")
-      .withIndex("by_open_sessions", (q) => q.eq("outcome", "open"))
+      .withIndex("by_subscription_outcome", (q) =>
+        q.eq("stripeSubscriptionId", stripeSubscriptionId).eq("outcome", "open")
+      )
       .collect();
     for (const session of open) {
-      if (session.stripeSubscriptionId === stripeSubscriptionId) {
-        await ctx.db.patch(session._id, {
-          outcome: "canceled",
-          resolvedAt: Date.now(),
-        });
-      }
+      await ctx.db.patch(session._id, {
+        outcome: "canceled",
+        resolvedAt: Date.now(),
+      });
     }
     return null;
   },

@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({
-  variable: "--font-inter",
+const body = Instrument_Sans({
+  variable: "--font-body",
+  subsets: ["latin"],
+});
+
+const display = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
@@ -15,13 +20,13 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://cancelkit.com"),
-  title: "CancelKit — Your cancel button fires instantly. Fix that in 5 minutes.",
+  title: "CancelKit — Catch the cancel. Never trap it.",
   description:
-    "CancelKit turns cancel clicks into pauses, discounts, and exit feedback. One script tag. $39/mo. One saved customer pays for the year.",
+    "One fair offer between your cancel button and Stripe — a pause or a discount — with “cancel anyway” always one click away. If CancelKit fails, your button still works.",
   openGraph: {
-    title: "Your cancel button fires instantly. Fix that in 5 minutes.",
+    title: "Catch the cancel. Never trap it.",
     description:
-      "CancelKit turns cancel clicks into pauses, discounts, and exit feedback. One script tag. $39/mo.",
+      "A cancel flow for Stripe that saves some subscribers, blocks none, and fails open.",
     siteName: "CancelKit",
     type: "website",
   },
@@ -35,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${body.variable} ${display.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>

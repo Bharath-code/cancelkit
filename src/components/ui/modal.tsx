@@ -7,10 +7,12 @@ export function Modal({
   open,
   onDismiss,
   children,
+  labelledBy,
 }: {
   open: boolean;
   onDismiss: () => void;
   children: ReactNode;
+  labelledBy?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -44,15 +46,16 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]"
       onClick={onDismiss}
     >
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={labelledBy}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[480px] rounded-lg bg-surface p-8 shadow-[0_8px_30px_rgba(22,24,29,0.12)]"
+        className="w-full max-w-[480px] animate-rise rounded-xl bg-surface p-8 shadow-[var(--shadow-modal)]"
       >
         {children}
       </div>

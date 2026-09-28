@@ -1,4 +1,10 @@
-// HMAC-SHA256(customerId, widgetSecret) → hex, with timing-safe comparison.
+// HMAC-SHA256(`${customerId}.${ts}`, widgetSecret) → hex, timing-safe compare.
+// ts (unix seconds) bounds replay: a leaked signature dies after the TTL.
+
+// ponytail: 1h covers a page left open before the cancel click; an expired
+// signature fails open (native cancel runs), so shorter = fewer saves.
+export const HMAC_TTL_SECONDS = 60 * 60;
+const CLOCK_SKEW_SECONDS = 60;
 
 export async function computeHmac(
   message: string,
@@ -21,6 +27,10 @@ export async function computeHmac(
   ).join("");
 }
 
+export function signedMessage(customerId: string, ts: number): string {
+  return `${customerId}.${ts}`;
+}
+
 // Constant-time hex comparison — never early-exits on mismatch.
 export function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -33,9 +43,14 @@ export function timingSafeEqualHex(a: string, b: string): boolean {
 
 export async function verifyHmac(
   customerId: string,
+  ts: number,
   hmac: string,
-  widgetSecret: string
+  widgetSecret: string,
+  nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<boolean> {
-  const expected = await computeHmac(customerId, widgetSecret);
+  if (!Number.isInteger(ts)) return false;
+  if (ts > nowSeconds + CLOCK_SKEW_SECONDS) return false;
+  if (nowSeconds - ts > HMAC_TTL_SECONDS) return false;
+  const expected = await computeHmac(signedMessage(customerId, ts), widgetSecret);
   return timingSafeEqualHex(expected, hmac.toLowerCase());
 }

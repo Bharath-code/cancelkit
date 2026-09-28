@@ -14,6 +14,7 @@ export default defineSchema({
     offerConfig: v.object({
       pauseDays: v.number(), // default 30
       couponId: v.optional(v.string()), // founder's chosen Stripe coupon; default = best valid coupon
+      cancelImmediately: v.optional(v.boolean()), // default (unset) = cancel at period end
     }),
     widgetStatus: v.union(
       v.literal("not_installed"), // no heartbeat seen yet
@@ -49,11 +50,13 @@ export default defineSchema({
     sandbox: v.boolean(), // true for preview sessions — excluded from stats
     multiSubscription: v.optional(v.boolean()), // customer had 2+ active subs (PRD § 11)
     createdAt: v.number(),
+    claimedAt: v.optional(v.number()), // resolve in flight; blocks a parallel resolve
     resolvedAt: v.optional(v.number()),
   })
     .index("by_account", ["accountId", "createdAt"])
     .index("by_account_outcome", ["accountId", "outcome"])
-    .index("by_open_sessions", ["outcome", "createdAt"]), // for the abandon sweeper
+    .index("by_open_sessions", ["outcome", "createdAt"]) // for the abandon sweeper
+    .index("by_subscription_outcome", ["stripeSubscriptionId", "outcome"]),
 
   // Webhook idempotency ledger.
   webhookEvents: defineTable({

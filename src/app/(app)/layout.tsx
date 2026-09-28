@@ -16,7 +16,7 @@ export default async function AppLayout({
     <ConvexClientProvider>
       <SessionTokenProvider token={sessionToken}>
         <AppNav />
-        <main className="mx-auto w-full max-w-[1080px] flex-1 px-6 py-8">
+        <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-10 sm:px-6">
           {children}
         </main>
       </SessionTokenProvider>

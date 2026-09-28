@@ -51,16 +51,20 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-[720px] space-y-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <div>
+        <h1 className="text-[32px] font-bold leading-tight">Settings</h1>
+        <p className="mt-1 text-muted">Changes apply to the next subscriber who clicks cancel.</p>
+      </div>
       {error && (
         <div className="rounded-md bg-error-surface px-4 py-3 text-sm text-error">{error}</div>
       )}
 
       <Card>
-        <h2 className="text-sm font-semibold">Offer</h2>
+        <h2 className="text-lg font-semibold">The offer</h2>
+        <p className="mt-1 text-sm text-muted">A coupon, when you pick one, is shown instead of the pause.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-xs font-medium text-muted">Pause length</span>
+            <span className="text-sm font-medium">Pause length</span>
             <select
               value={account.offerConfig.pauseDays}
               disabled={saving === "pause"}
@@ -80,7 +84,7 @@ export default function SettingsPage() {
             </select>
           </label>
           <label className="block text-sm">
-            <span className="text-xs font-medium text-muted">Coupon offer</span>
+            <span className="text-sm font-medium">Coupon offer</span>
             <select
               value={account.offerConfig.couponId ?? ""}
               disabled={saving === "coupon" || coupons === null}
@@ -110,11 +114,28 @@ export default function SettingsPage() {
             No valid coupons found on your Stripe account — the widget offers a pause.
           </p>
         )}
+        <label className="mt-4 block text-sm">
+          <span className="text-sm font-medium">When a subscriber cancels anyway</span>
+          <select
+            value={account.offerConfig.cancelImmediately ? "now" : "period_end"}
+            disabled={saving === "cancelMode"}
+            onChange={(e) =>
+              void save(
+                { sessionToken, cancelImmediately: e.target.value === "now" },
+                "cancelMode"
+              )
+            }
+            className="mt-1 block h-10 w-full rounded-md border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none sm:w-1/2"
+          >
+            <option value="period_end">End at the close of the paid period</option>
+            <option value="now">Cancel immediately, no proration</option>
+          </select>
+        </label>
       </Card>
 
-      <Card>
-        <h2 className="text-sm font-semibold">Kill switch</h2>
-        <p className="mt-1 text-xs text-muted">
+      <Card className={killed ? "border-warning/40 bg-warning-surface" : ""}>
+        <h2 className="text-lg font-semibold">Kill switch</h2>
+        <p className="mt-1 text-sm text-muted">
           Instantly disables the widget for all your customers. Native cancel
           behavior resumes on their next click.
         </p>
@@ -126,7 +147,7 @@ export default function SettingsPage() {
           ) : (
             <button
               onClick={() => setConfirm("kill")}
-              className="h-10 rounded-md border border-error px-5 py-2.5 text-sm font-medium text-error hover:bg-error-surface"
+              className="inline-flex h-11 items-center rounded-full border border-error px-6 text-[15px] font-semibold text-error transition-colors hover:bg-error-surface"
             >
               Disable the widget
             </button>
@@ -140,9 +161,9 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold">Widget secret</h2>
-        <p className="mt-1 text-xs text-muted">
-          Rotating kills every HMAC computed with the old secret — your cancel
+        <h2 className="text-lg font-semibold">Widget secret</h2>
+        <p className="mt-1 text-sm text-muted">
+          Rotating invalidates every signature made with the old secret. Your cancel
           button stops opening CancelKit (and fails open to native cancel)
           until you deploy the new secret.
         </p>
@@ -154,30 +175,34 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold">What CancelKit can touch</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted">
-          <li>Pause collection on a subscription (with a resume date)</li>
+        <h2 className="text-lg font-semibold">What CancelKit&apos;s code does in Stripe</h2>
+        <p className="mt-1 text-sm text-muted">
+          Stripe&apos;s OAuth grant is account-wide. Our code uses it for these calls only:
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted">
+          <li>Pause collection on a subscription, with a resume date</li>
           <li>Apply one of your existing coupons to a subscription</li>
           <li>Cancel a subscription when the subscriber asks</li>
           <li>Read plans, coupons, and branding to build the flow</li>
         </ul>
-        <p className="mt-2 text-xs text-muted">
-          Never: charges, refunds, payouts, creating prices or coupons, or any
-          customer not presented by your own page with a valid HMAC.{" "}
-          <a href="/security" className="text-accent hover:underline">
-            Full mechanisms →
+        <p className="mt-3 text-sm text-muted">
+          It never issues charges or refunds, touches payouts, or creates
+          prices or coupons. It acts only on subscribers your page signed a
+          request for.{" "}
+          <a href="/security" className="font-medium text-accent underline underline-offset-4">
+            Every call, in detail
           </a>
         </p>
       </Card>
 
-      <Modal open={confirm !== null} onDismiss={() => setConfirm(null)}>
-        <h2 className="text-lg font-semibold">
+      <Modal open={confirm !== null} onDismiss={() => setConfirm(null)} labelledBy="confirm-title">
+        <h2 id="confirm-title" className="text-xl font-semibold">
           {confirm === "kill" ? "Disable the widget?" : "Rotate the widget secret?"}
         </h2>
         <p className="mt-2 text-sm text-muted">
           {confirm === "kill"
             ? "This disables the widget for all your customers instantly. Native cancel behavior resumes."
-            : "Old HMACs die immediately. Copy the new snippet to your server right after, or your widget fails open until you do."}
+            : "Old signatures stop working immediately. Copy the new snippet to your server right after, or your widget fails open until you do."}
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="cancel-ghost" onClick={() => setConfirm(null)}>

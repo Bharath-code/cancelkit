@@ -50,6 +50,7 @@ export const updateSettings = mutation({
     sessionToken: v.string(),
     pauseDays: v.optional(v.number()),
     couponId: v.optional(v.union(v.string(), v.null())),
+    cancelImmediately: v.optional(v.boolean()),
     killSwitch: v.optional(v.boolean()),
     rotateSecret: v.optional(v.boolean()),
   },
@@ -66,9 +67,18 @@ export const updateSettings = mutation({
     if (args.couponId !== undefined) {
       await ctx.db.patch(account._id, {
         offerConfig: {
-          pauseDays:
-            args.pauseDays ?? account.offerConfig.pauseDays,
+          ...account.offerConfig,
+          pauseDays: args.pauseDays ?? account.offerConfig.pauseDays,
           couponId: args.couponId === null ? undefined : args.couponId,
+        },
+      });
+    }
+    if (args.cancelImmediately !== undefined) {
+      const fresh = (await ctx.db.get(account._id))!;
+      await ctx.db.patch(account._id, {
+        offerConfig: {
+          ...fresh.offerConfig,
+          cancelImmediately: args.cancelImmediately,
         },
       });
     }

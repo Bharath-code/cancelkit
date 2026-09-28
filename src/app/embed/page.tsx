@@ -10,7 +10,10 @@ import {
   FlowSubscription,
   ResolveResult,
 } from "@/components/features/CancelFlow";
-import type { EmbedToLoaderMessage } from "@/lib/widget-protocol";
+import type {
+  EmbedToLoaderMessage,
+  LoaderToEmbedMessage,
+} from "@/lib/widget-protocol";
 
 const API_URL = process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "";
 
@@ -21,17 +24,33 @@ type SessionPayload = {
   branding: FlowBranding;
 };
 
+// Host origin is unknown until the loader's init arrives. Only "ready"
+// (no payload) goes out before that; everything after targets the host.
+let hostOrigin: string | null = null;
+
 function postToLoader(msg: EmbedToLoaderMessage) {
-  // The loader validates origin; "*" is safe because the payload carries no
-  // secrets and the loader ignores messages not shaped by our protocol.
-  window.parent.postMessage(msg, "*");
+  window.parent.postMessage(msg, msg.type === "ready" ? "*" : (hostOrigin ?? "null"));
+}
+
+function waitForInit(): Promise<LoaderToEmbedMessage> {
+  return new Promise((resolve) => {
+    function onMessage(e: MessageEvent) {
+      if (e.source !== window.parent) return;
+      const m = e.data as LoaderToEmbedMessage;
+      if (m?.source !== "cancelkit" || m.type !== "init") return;
+      window.removeEventListener("message", onMessage);
+      hostOrigin = e.origin;
+      resolve(m);
+    }
+    window.addEventListener("message", onMessage);
+  });
 }
 
 function EmbedInner() {
   const params = useSearchParams();
   const [state, setState] = useState<
     | { kind: "loading" }
-    | { kind: "ready"; payload: SessionPayload; sandbox: boolean }
+    | { kind: "ready"; payload: SessionPayload }
     | { kind: "blocked" } // failopen already sent — show nothing actionable
   >({ kind: "loading" });
   const startedRef = useRef(false);
@@ -42,19 +61,17 @@ function EmbedInner() {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    postToLoader({ source: "cancelkit", type: "ready" });
-
     const publicKey = params.get("pk") ?? "";
-    const customerId = params.get("customer") ?? "";
-    const hmac = params.get("hmac") ?? "";
-    const sandbox = params.get("sandbox") === "1";
+    const init = waitForInit();
+    postToLoader({ source: "cancelkit", type: "ready" });
 
     (async () => {
       try {
+        const { customerId, hmac, ts } = await init;
         const res = await fetch(`${API_URL}/widget/session`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publicKey, customerId, hmac, sandbox }),
+          body: JSON.stringify({ publicKey, customerId, hmac, ts }),
         });
         if (!res.ok) {
           // invalid HMAC, kill switch, lapsed billing, no subscription —
@@ -68,7 +85,7 @@ function EmbedInner() {
           return;
         }
         const payload = (await res.json()) as SessionPayload;
-        setState({ kind: "ready", payload, sandbox });
+        setState({ kind: "ready", payload });
       } catch {
         postToLoader({ source: "cancelkit", type: "failopen", reason: "network" });
         setState({ kind: "blocked" });
@@ -90,7 +107,7 @@ function EmbedInner() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div
-          className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary"
+          className="h-6 w-6 motion-safe:animate-spin rounded-full border-2 border-border border-t-primary"
           role="status"
           aria-label="Loading"
         />
@@ -100,7 +117,7 @@ function EmbedInner() {
 
   if (state.kind === "blocked") return null;
 
-  const { payload, sandbox } = state;
+  const { payload } = state;
 
   async function onResolve(r: FlowResolution): Promise<ResolveResult> {
     try {
@@ -206,7 +223,6 @@ function EmbedInner() {
         offer={payload.offer}
         onResolve={onResolve}
         onDismiss={onDismiss}
-        sandbox={sandbox}
       />
     </div>
   );

@@ -19,10 +19,10 @@ function fromAddress(): string {
   return process.env.RESEND_FROM || "CancelKit <onboarding@resend.dev>";
 }
 
-function money(cents: number): string {
+function money(cents: number, currency: string): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: currency.toUpperCase(),
     maximumFractionDigits: 0,
   }).format(cents / 100);
 }
@@ -76,7 +76,7 @@ export const sendSaveEmail = internalAction({
       // keep the fragment
     }
 
-    const amount = money(session.mrrCents);
+    const amount = money(session.mrrCents, session.currency);
     const html = await render(
       createElement(SaveEmail, {
         customerLabel,
@@ -131,8 +131,13 @@ export const monthlyReceipts = internalAction({
     let sent = 0;
     for (const d of digests) {
       if (!d.email) continue;
-      const amount = money(d.savedMrrCents);
-      const multiple = `${Math.max(1, Math.round(d.savedMrrCents / FOUNDER_RATE_CENTS))}x`;
+      const totals = Object.entries(d.savedByCurrency);
+      const amount = totals.length
+        ? totals.map(([cur, cents]) => money(cents, cur)).join(" + ")
+        : money(0, "usd");
+      // ponytail: multiple counts USD only; FX conversion if non-USD founders show up
+      const usd = d.savedByCurrency.usd ?? 0;
+      const multiple = `${Math.max(1, Math.round(usd / FOUNDER_RATE_CENTS))}x`;
       const reasonSummary = Object.entries(d.reasons)
         .sort((a, b) => b[1] - a[1])
         .map(([value, count]) => ({

@@ -80,6 +80,35 @@ export const getSession = internalQuery({
   },
 });
 
+const CLAIM_TTL_MS = 60_000; // a crashed resolve frees the session after this
+
+export function canClaim(
+  session: { outcome: string; claimedAt?: number } | null,
+  now: number
+): boolean {
+  if (!session || session.outcome !== "open") return false;
+  return !session.claimedAt || now - session.claimedAt >= CLAIM_TTL_MS;
+}
+
+// Mutations are transactions: check-and-claim can't race, so two parallel
+// resolves (accept_offer + cancel) can't both reach Stripe.
+export const claimSession = internalMutation({
+  args: { id: v.id("cancelSessions") },
+  handler: async (ctx, { id }) => {
+    if (!canClaim(await ctx.db.get(id), Date.now())) return false;
+    await ctx.db.patch(id, { claimedAt: Date.now() });
+    return true;
+  },
+});
+
+export const releaseSession = internalMutation({
+  args: { id: v.id("cancelSessions") },
+  handler: async (ctx, { id }) => {
+    await ctx.db.patch(id, { claimedAt: undefined });
+    return null;
+  },
+});
+
 export const patchSession = internalMutation({
   args: {
     id: v.id("cancelSessions"),
