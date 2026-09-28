@@ -45,3 +45,5 @@ next-env.d.ts
 
 # local session memory (tooling)
 .remember/
+
+/videos/
