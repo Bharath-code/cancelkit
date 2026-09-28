@@ -35,7 +35,7 @@ function mapStripeError(err: unknown): { code: string; message: string } {
         message: "This subscription is already canceled.",
       };
     }
-    if (err.code === "coupon_expired" || err.message?.includes("coupon")) {
+    if (err.code === "coupon_expired") {
       return { code: "expired_coupon", message: err.message };
     }
     return { code: "stripe_error", message: err.message };
@@ -154,11 +154,15 @@ export const applyCoupon = internalAction({
   },
 });
 
+// Default is cancel_at_period_end: the subscriber keeps the time they paid
+// for, and there's no refund/chargeback exposure. Founders can opt into
+// immediate cancel in settings.
 export const cancelSubscription = internalAction({
   args: {
     stripeAccountId: v.string(),
     subscriptionId: v.string(),
     sessionId: v.string(),
+    atPeriodEnd: v.boolean(),
   },
   handler: async (_ctx, args) => {
     const stripe = stripeClient();
@@ -166,32 +170,50 @@ export const cancelSubscription = internalAction({
       args.stripeAccountId === "self"
         ? {}
         : { stripeAccount: args.stripeAccountId };
+    const opts = { ...acct, idempotencyKey: `${args.sessionId}:cancel` };
+    // set only for a scheduled (future) end — the widget shows "access until"
+    const endsAt = (sub: Stripe.Subscription) =>
+      sub.status !== "canceled" && sub.cancel_at
+        ? new Date(sub.cancel_at * 1000).toISOString()
+        : undefined;
     try {
       const current = await stripe.subscriptions.retrieve(
         args.subscriptionId,
         {},
         acct
       );
+      // Idempotent success: the end state the subscriber asked for exists.
       if (current.status === "canceled") {
-        // Idempotent success: the end state the subscriber asked for exists.
-        return { ok: true as const };
+        return { ok: true as const, endsAt: endsAt(current) };
+      }
+      if (args.atPeriodEnd && current.cancel_at_period_end) {
+        return { ok: true as const, endsAt: endsAt(current) };
       }
       await withRetry(() =>
-        stripe.subscriptions.cancel(
-          args.subscriptionId,
-          { prorate: false },
-          { ...acct, idempotencyKey: `${args.sessionId}:cancel` }
-        )
+        args.atPeriodEnd
+          ? stripe.subscriptions.update(
+              args.subscriptionId,
+              { cancel_at_period_end: true },
+              opts
+            )
+          : stripe.subscriptions.cancel(
+              args.subscriptionId,
+              { prorate: false },
+              opts
+            )
       );
       const after = await stripe.subscriptions.retrieve(
         args.subscriptionId,
         {},
         acct
       );
-      if (after.status !== "canceled") {
+      const done = args.atPeriodEnd
+        ? after.cancel_at_period_end || after.status === "canceled"
+        : after.status === "canceled";
+      if (!done) {
         return { ok: false as const, ...mapStripeError(null) };
       }
-      return { ok: true as const };
+      return { ok: true as const, endsAt: endsAt(after) };
     } catch (err) {
       return { ok: false as const, ...mapStripeError(err) };
     }

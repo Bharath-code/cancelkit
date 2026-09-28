@@ -21,3 +21,13 @@ export type EmbedToLoaderMessage =
   // Embed could not serve (invalid HMAC, kill switch, billing lapsed, API
   // down): loader releases the original click and no-ops for the page load.
   | { source: "cancelkit"; type: "failopen"; reason?: string };
+
+// Loader → embed, sent once after "ready", targeted at the app origin only.
+// The signature never rides the iframe URL (logs, history, Referer).
+export type LoaderToEmbedMessage = {
+  source: "cancelkit";
+  type: "init";
+  customerId: string;
+  hmac: string;
+  ts: number;
+};

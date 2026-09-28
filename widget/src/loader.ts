@@ -1,4 +1,4 @@
-import type { EmbedToLoaderMessage } from "./types";
+import type { EmbedToLoaderMessage, LoaderToEmbedMessage } from "./types";
 
 // Injected by build.mjs
 declare const __APP_URL__: string;
@@ -19,6 +19,7 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
   const publicKey = script.getAttribute("data-account") || "";
   const customerId = script.getAttribute("data-customer") || "";
   const hmac = script.getAttribute("data-hmac") || "";
+  const ts = Number(script.getAttribute("data-ts") || 0);
   const selector =
     script.getAttribute("data-selector") || "[data-cancelkit-trigger]";
   if (!publicKey) return;
@@ -26,7 +27,11 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
   const appOrigin = new URL(__APP_URL__).origin;
   let bypass = false; // true while releasing a click to native behavior
   let disabled = false; // set on failopen — no-op for the rest of the page load
-  let openModal: { root: HTMLElement; cleanup: () => void } | null = null;
+  let openModal: {
+    root: HTMLElement;
+    cleanup: () => void;
+    trigger: HTMLElement;
+  } | null = null;
 
   function beacon(message: string, stack?: string): void {
     try {
@@ -70,9 +75,15 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
 
   function close(): void {
     if (openModal) {
+      const { trigger } = openModal;
       openModal.cleanup();
       openModal.root.remove();
       openModal = null;
+      try {
+        trigger.focus(); // WCAG 2.4.3: focus returns to what opened the dialog
+      } catch {
+        /* detached trigger — nothing to return to */
+      }
     }
   }
 
@@ -99,13 +110,12 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
       root,
       "position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(22,24,29,0.4)"
     );
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-label", "Manage your subscription");
     const iframe = document.createElement("iframe");
-    const params = new URLSearchParams({
-      pk: publicKey,
-      customer: customerId,
-      hmac,
-    });
-    iframe.src = __APP_URL__ + "/embed?" + params.toString();
+    iframe.src =
+      __APP_URL__ + "/embed?" + new URLSearchParams({ pk: publicKey }).toString();
     styleImportant(
       iframe,
       "border:0;width:min(480px,calc(100vw - 32px));height:min(640px,calc(100vh - 32px));border-radius:12px;background:#fff;box-shadow:0 8px 30px rgba(22,24,29,0.12)"
@@ -127,6 +137,15 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
       if (!msg || msg.source !== "cancelkit") return;
       if (msg.type === "ready") {
         ready = true;
+        const init: LoaderToEmbedMessage = {
+          source: "cancelkit",
+          type: "init",
+          customerId,
+          hmac,
+          ts,
+        };
+        iframe.contentWindow?.postMessage(init, appOrigin);
+        iframe.focus(); // move keyboard focus into the dialog
         return;
       }
       if (msg.type === "dismissed") {
@@ -158,12 +177,20 @@ const HEARTBEAT_INTERVAL_MS = 60 * 60 * 1000;
       if (e.target === root) close(); // backdrop click = dismiss
     });
 
+    // screen readers and Tab stay out of the page behind the dialog
+    const inerted = Array.from(document.body.children).filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && !el.inert
+    );
+    inerted.forEach((el) => (el.inert = true));
+
     openModal = {
       root,
+      trigger: target,
       cleanup: () => {
         window.clearTimeout(timer);
         window.removeEventListener("message", onMessage);
         document.removeEventListener("keydown", onKey);
+        inerted.forEach((el) => (el.inert = false));
       },
     };
     document.body.appendChild(root);

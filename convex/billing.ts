@@ -3,12 +3,13 @@ import {
   action,
   internalMutation,
   internalQuery,
+  mutation,
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAccount } from "./lib/auth";
 import { stripeClient } from "./lib/stripeClient";
-import { computeHmac } from "./lib/hmac";
+import { computeHmac, signedMessage } from "./lib/hmac";
 
 // CancelKit's own billing lives on the PLATFORM Stripe account — no
 // Stripe-Account header anywhere in this file.
@@ -183,7 +184,9 @@ export const overview = action({
 
 // Params for the dogfooded cancel: CancelKit's own embed pointed at the
 // reserved self-account, HMAC computed server-side (PRD § 10).
-export const selfEmbedParams = query({
+// A mutation, not a query: the signature's timestamp must be fresh at click
+// time, and query results are cached.
+export const selfEmbedParams = mutation({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
     const account = await requireAccount(ctx, sessionToken);
@@ -197,10 +200,15 @@ export const selfEmbedParams = query({
       .withIndex("by_stripe_account", (q) => q.eq("stripeAccountId", "self"))
       .unique();
     if (!self) return null;
+    const ts = Math.floor(Date.now() / 1000);
     return {
       publicKey: self.publicKey,
       customerId: billing.stripeCustomerId,
-      hmac: await computeHmac(billing.stripeCustomerId, self.widgetSecret),
+      ts,
+      hmac: await computeHmac(
+        signedMessage(billing.stripeCustomerId, ts),
+        self.widgetSecret
+      ),
     };
   },
 });

@@ -53,7 +53,11 @@ export const stats = query({
       savedMrrCents,
       cancels: cancels.length,
       saveRate: saves + cancels.length > 0 ? saves / (saves + cancels.length) : 0,
-      widgetStatus: account.widgetStatus,
+      widgetStatus:
+        account.widgetStatus === "live" &&
+        (account.lastHeartbeatAt ?? 0) < Date.now() - 86400_000
+          ? ("silent" as const)
+          : account.widgetStatus,
       recent: latest
         .filter((s) => !s.sandbox)
         .slice(0, 100)
@@ -101,7 +105,10 @@ export const monthlyDigest = internalQuery({
         email: account.email,
         businessName: account.businessName,
         saves: saved.length,
-        savedMrrCents: saved.reduce((sum, s) => sum + s.mrrCents, 0),
+        savedByCurrency: saved.reduce<Record<string, number>>((acc, s) => {
+          acc[s.currency] = (acc[s.currency] ?? 0) + s.mrrCents;
+          return acc;
+        }, {}),
         reasons,
       });
     }

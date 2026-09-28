@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { REASONS } from "@/lib/constants";
 import { textOn } from "@/lib/contrast";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -31,7 +31,7 @@ export type FlowResolution = {
 
 export type ResolveResult = {
   outcome: "saved_pause" | "saved_coupon" | "canceled" | "abandoned";
-  detail?: { resumesAt?: string; newAmountCents?: number };
+  detail?: { resumesAt?: string; newAmountCents?: number; endsAt?: string };
   error?: string; // mechanism-first message when Stripe rejected the action
   // coupon expired at accept-time: swap to this offer and return to the
   // offer step instead of showing a dead end (PRD § 11)
@@ -50,6 +50,73 @@ function formatDate(iso: string): string {
     month: "long",
     day: "numeric",
   });
+}
+
+const STEPS = ["reason", "offer", "resolution"] as const;
+
+function StepDots({ step, color }: { step: (typeof STEPS)[number]; color: string }) {
+  const at = STEPS.indexOf(step);
+  return (
+    <div className="flex items-center gap-1.5" aria-hidden="true">
+      {STEPS.map((s, i) => (
+        <span
+          key={s}
+          className="h-1.5 rounded-full transition-all duration-300"
+          style={{
+            width: i === at ? 20 : 6,
+            background: i <= at ? color : "#D8DFE8",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PauseIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden="true">
+      <circle cx="16" cy="16" r="15" fill={color} opacity="0.12" />
+      <rect x="11" y="10" width="3.5" height="12" rx="1.5" fill={color} />
+      <rect x="17.5" y="10" width="3.5" height="12" rx="1.5" fill={color} />
+    </svg>
+  );
+}
+
+function TagIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden="true" fill="none">
+      <circle cx="16" cy="16" r="15" fill={color} opacity="0.12" />
+      <path d="M9 9h7l7 7-7 7-7-7z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <circle cx="13" cy="13" r="1.6" fill={color} />
+    </svg>
+  );
+}
+
+// Outcome marks draw themselves once — motion that confirms what changed.
+function OutcomeMark({ kind }: { kind: "saved" | "canceled" | "error" }) {
+  const color = kind === "saved" ? "#0B9A6D" : kind === "error" ? "#C2372B" : "#7C8A9E";
+  return (
+    <svg viewBox="0 0 56 56" className="h-14 w-14" aria-hidden="true" fill="none">
+      <circle cx="28" cy="28" r="26" fill={color} opacity="0.1" />
+      <circle
+        cx="28" cy="28" r="22" stroke={color} strokeWidth="2.5"
+        strokeDasharray="140" className="animate-draw" style={{ ["--len" as string]: 140 }}
+        transform="rotate(-90 28 28)"
+      />
+      {kind === "saved" && (
+        <path d="M18 29l7 7 13-15" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+          strokeDasharray="36" className="animate-draw" style={{ ["--len" as string]: 36, animationDelay: "0.45s" }} />
+      )}
+      {kind === "canceled" && (
+        <path d="M19 28h18M31 22l6 6-6 6" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+          strokeDasharray="36" className="animate-draw" style={{ ["--len" as string]: 36, animationDelay: "0.45s" }} />
+      )}
+      {kind === "error" && (
+        <path d="M28 18v12M28 37v.5" stroke={color} strokeWidth="3.5" strokeLinecap="round"
+          strokeDasharray="24" className="animate-draw" style={{ ["--len" as string]: 24, animationDelay: "0.45s" }} />
+      )}
+    </svg>
+  );
 }
 
 // Pure UI, data-agnostic. The parent supplies data and executes resolutions.
@@ -73,17 +140,26 @@ export function CancelFlow({
   const [notice, setNotice] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [reasonText, setReasonText] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"accept_offer" | "cancel" | null>(null);
   const [result, setResult] = useState<ResolveResult | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const prevStep = useRef(step);
 
-  const brandColor = branding.brandColor || "#16181D";
+  // on step change, move focus to the new heading so keyboard + screen reader
+  // users land on the new content; never on mount, so host pages don't jump
+  useEffect(() => {
+    if (prevStep.current !== step) headingRef.current?.focus({ preventScroll: true });
+    prevStep.current = step;
+  }, [step]);
+
+  const brandColor = branding.brandColor || "#0F1E36";
   const brandText = textOn(brandColor);
   const brandBtn =
-    "h-10 rounded-md px-5 py-2.5 text-sm font-medium transition-opacity disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4353FF]";
+    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition-[opacity,transform,filter] duration-150 hover:brightness-110 active:translate-y-px disabled:opacity-40";
 
   async function resolve(resolution: "accept_offer" | "cancel") {
     if (busy) return;
-    setBusy(true);
+    setBusy(resolution);
     try {
       const r = await onResolve({
         resolution,
@@ -100,52 +176,79 @@ export function CancelFlow({
       setResult(r);
       setStep("resolution");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
+
+  const spinner = (
+    <svg viewBox="0 0 16 16" className="h-4 w-4 animate-spin" aria-hidden="true" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 
   const cancelAnyway = (
     <button
       onClick={() => resolve("cancel")}
-      disabled={busy}
-      className="h-10 rounded-md px-5 py-2.5 text-sm text-muted transition-colors hover:text-on-surface disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4353FF]"
+      disabled={busy !== null}
+      className="inline-flex h-11 items-center gap-2 rounded-full px-2 text-sm text-muted underline-offset-4 transition-colors hover:text-on-surface hover:underline disabled:opacity-50"
     >
+      {busy === "cancel" && spinner}
       Cancel my subscription anyway
     </button>
   );
 
+  const headingClass = "text-xl font-semibold leading-snug outline-none";
+
   return (
-    <div className="min-w-[280px] max-w-[480px] rounded-lg bg-surface p-8 text-on-surface">
+    <div className="relative min-w-[280px] max-w-[480px] overflow-hidden rounded-xl bg-surface p-7 text-on-surface sm:p-8">
       {sandbox && (
-        <div className="mb-4 rounded-sm bg-warning-surface px-3 py-2 text-xs font-medium tracking-wide text-warning">
+        <div className="mb-5 flex items-center gap-2 rounded-full bg-marigold-soft px-3 py-1.5 text-xs font-medium text-warning">
+          <span className="h-1.5 w-1.5 rounded-full bg-marigold" />
           Sandbox — nothing here touches live billing
         </div>
       )}
 
-      <header className="mb-6 flex items-center gap-3">
-        {branding.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={branding.logoUrl}
-            alt=""
-            className="h-8 w-8 rounded-sm object-contain"
-          />
-        )}
-        <span className="text-sm font-semibold">{branding.businessName}</span>
+      <header className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {branding.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={branding.logoUrl} alt="" className="h-8 w-8 rounded-md object-contain" />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 place-items-center rounded-md text-sm font-bold"
+              style={{ background: brandColor, color: brandText }}
+            >
+              {branding.businessName.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <span className="text-sm font-semibold">{branding.businessName}</span>
+        </div>
+        <StepDots step={step} color={brandColor} />
       </header>
 
+      <div aria-live="polite" className="sr-only">
+        {step === "offer" && notice}
+        {step === "resolution" && result?.error}
+      </div>
+
       {step === "reason" && (
-        <div>
-          <h2 className="text-lg font-semibold">
+        <div key="reason" className="animate-step">
+          <h2 ref={headingRef} tabIndex={-1} className={headingClass}>
             Before you go — what&apos;s not working?
           </h2>
-          <div className="mt-4">
+          <p className="mt-1 text-sm text-muted">
+            One question, then you decide. Your answer goes straight to the team.
+          </p>
+          <div className="mt-5">
             <RadioGroup
               name="reason"
               label="Reason for canceling"
               options={[...REASONS]}
               value={reason}
               onChange={setReason}
+              accent={brandColor}
             />
           </div>
           {reason === "other" && (
@@ -153,16 +256,17 @@ export function CancelFlow({
               value={reasonText}
               onChange={(e) => setReasonText(e.target.value)}
               placeholder="Tell us more (optional)"
+              aria-label="Tell us more (optional)"
               rows={2}
-              className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+              className="mt-3 w-full animate-rise rounded-md border border-border bg-surface px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
             />
           )}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             {cancelAnyway}
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <button
                 onClick={onDismiss}
-                className="h-10 rounded-md px-5 py-2.5 text-sm text-muted hover:text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4353FF]"
+                className="h-11 rounded-full px-4 text-sm text-muted transition-colors hover:bg-mist hover:text-on-surface"
               >
                 Never mind
               </button>
@@ -180,16 +284,20 @@ export function CancelFlow({
       )}
 
       {step === "offer" && (
-        <div>
-          <h2 className="text-lg font-semibold">One option before you go</h2>
+        <div key="offer" className="animate-step">
+          <h2 ref={headingRef} tabIndex={-1} className={headingClass}>
+            One option before you go
+          </h2>
           {notice && (
-            <p className="mt-2 rounded-sm bg-warning-surface px-3 py-2 text-xs text-warning">
+            <p className="mt-3 rounded-md bg-warning-surface px-3 py-2 text-xs text-warning">
               {notice}
             </p>
           )}
-          <div className="mt-4">
+          <div className="mt-5">
             {offer.type === "pause" ? (
               <OfferCard
+                accent={brandColor}
+                icon={<PauseIcon color={brandColor} />}
                 title={`Pause for ${offer.days} days instead`}
                 terms={`Billing stops today. Nothing is charged until ${formatDate(
                   offer.resumesAt
@@ -200,6 +308,8 @@ export function CancelFlow({
               />
             ) : (
               <OfferCard
+                accent={brandColor}
+                icon={<TagIcon color={brandColor} />}
                 title={offer.label}
                 terms={`From your next invoice you pay ${formatMoney(
                   offer.newAmountCents,
@@ -215,11 +325,12 @@ export function CancelFlow({
             {cancelAnyway}
             <button
               onClick={() => resolve("accept_offer")}
-              disabled={busy}
+              disabled={busy !== null}
               className={brandBtn}
               style={{ backgroundColor: brandColor, color: brandText }}
             >
-              {busy
+              {busy === "accept_offer" && spinner}
+              {busy === "accept_offer"
                 ? "Working…"
                 : offer.type === "pause"
                   ? `Pause for ${offer.days} days`
@@ -230,16 +341,22 @@ export function CancelFlow({
       )}
 
       {step === "resolution" && result && (
-        <div>
+        <div key="resolution" className="animate-step text-center">
           {result.error ? (
             <>
-              <h2 className="text-lg font-semibold">That didn&apos;t work</h2>
-              <p className="mt-3 text-sm text-error">{result.error}</p>
-              <div className="mt-6">{cancelAnyway}</div>
+              <div className="flex justify-center"><OutcomeMark kind="error" /></div>
+              <h2 ref={headingRef} tabIndex={-1} className={`${headingClass} mt-4`}>
+                That didn&apos;t work
+              </h2>
+              <p className="mt-2 text-sm text-error">{result.error}</p>
+              <div className="mt-6 flex justify-center">{cancelAnyway}</div>
             </>
           ) : (
             <>
-              <h2 className="text-lg font-semibold">
+              <div className="flex justify-center">
+                <OutcomeMark kind={result.outcome === "canceled" || result.outcome === "abandoned" ? "canceled" : "saved"} />
+              </div>
+              <h2 ref={headingRef} tabIndex={-1} className={`${headingClass} mt-4`}>
                 {result.outcome === "saved_pause" &&
                   `Paused until ${
                     result.detail?.resumesAt
@@ -256,13 +373,15 @@ export function CancelFlow({
                       : "your new price"
                   }/${subscription.interval}.`}
                 {result.outcome === "canceled" &&
-                  "Your subscription is canceled. Sorry to see you go."}
+                  (result.detail?.endsAt
+                    ? `Canceled. You keep access until ${formatDate(result.detail.endsAt)}, and you won't be charged again.`
+                    : "Your subscription is canceled. Thanks for giving us a try.")}
                 {result.outcome === "abandoned" && "No changes made."}
               </h2>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-center">
                 <button
                   onClick={onDismiss}
-                  className="h-10 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-on-primary hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4353FF]"
+                  className="h-11 rounded-full bg-primary px-6 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover"
                 >
                   Close
                 </button>

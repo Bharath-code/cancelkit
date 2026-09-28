@@ -15,7 +15,8 @@ const http = httpRouter();
 // (app :3000 → convex .site) and same-site in prod.
 function corsHeaders(): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": process.env.APP_URL || "*",
+    // fail closed: no APP_URL → no cross-origin access
+    "Access-Control-Allow-Origin": process.env.APP_URL ?? "null",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     Vary: "Origin",
@@ -95,7 +96,7 @@ http.route({
     const publicKey = typeof body?.publicKey === "string" ? body.publicKey : "";
     const customerId = typeof body?.customerId === "string" ? body.customerId : "";
     const hmac = typeof body?.hmac === "string" ? body.hmac : "";
-    const sandbox = body?.sandbox === true;
+    const ts = typeof body?.ts === "number" ? body.ts : NaN;
     if (!publicKey || !customerId) {
       return json(404, { error: "unknown account or customer", code: "not_found" });
     }
@@ -123,9 +124,9 @@ http.route({
     }
 
     // Billing gate (FR: serve while active, or past_due within 14-day grace).
-    // Sandbox/preview sessions are always allowed; the reserved self-account
-    // (CancelKit's own dogfooded cancel) is exempt.
-    if (!sandbox && account.stripeAccountId !== "self") {
+    // The reserved self-account (CancelKit's own dogfooded cancel) is exempt.
+    // Previews never come through here — they use cancelSessions.start.
+    if (account.stripeAccountId !== "self") {
       const billing = await ctx.runQuery(internal.billing.getByAccount, {
         accountId: account._id,
       });
@@ -140,14 +141,11 @@ http.route({
       }
     }
 
-    // HMAC verification (skipped for sandbox sessions, which never mutate).
-    if (!sandbox) {
-      const valid =
-        hmac.length > 0 &&
-        (await verifyHmac(customerId, hmac, account.widgetSecret));
-      if (!valid) {
-        return json(401, { error: "invalid hmac", code: "invalid_hmac" });
-      }
+    const valid =
+      hmac.length > 0 &&
+      (await verifyHmac(customerId, ts, hmac, account.widgetSecret));
+    if (!valid) {
+      return json(401, { error: "invalid or expired hmac", code: "invalid_hmac" });
     }
 
     let data: SubscriptionAndOffer;
@@ -170,7 +168,7 @@ http.route({
       accountId: account._id,
       stripeCustomerId: customerId,
       stripeSubscriptionId: data.subscription.id,
-      mrrCents: data.subscription.amountCents,
+      mrrCents: data.subscription.mrrCents,
       currency: data.subscription.currency,
       planNickname: data.subscription.planNickname,
       offerType: data.offer.type,
@@ -178,7 +176,7 @@ http.route({
         data.offer.type === "pause"
           ? `pause_${data.offer.days}d`
           : data.offer.couponId,
-      sandbox,
+      sandbox: false,
       multiSubscription: data.multiSubscription || undefined,
     });
 
@@ -245,52 +243,150 @@ http.route({
       return json(429, { error: "rate limited", code: "rate_limited" });
     }
 
-    // Dismiss — no Stripe, sandbox or live.
-    if (resolution === "dismiss") {
-      await ctx.runMutation(internal.widget.patchSession, {
-        id: session._id,
-        reason,
-        reasonText,
-        outcome: "abandoned",
-      });
-      return json(200, { outcome: "abandoned" });
+    // Atomic claim before any Stripe call: a parallel resolve gets a 409.
+    const claimed = await ctx.runMutation(internal.widget.claimSession, {
+      id: session._id,
+    });
+    if (!claimed) {
+      return json(409, { error: "session already resolved", code: "stripe_error" });
     }
 
-    // Sandbox sessions mutate nothing in Stripe.
-    if (session.sandbox) {
-      const outcome =
-        resolution === "cancel"
-          ? ("canceled" as const)
-          : session.offerType === "pause"
-            ? ("saved_pause" as const)
-            : ("saved_coupon" as const);
-      await ctx.runMutation(internal.widget.patchSession, {
-        id: session._id,
-        reason,
-        reasonText,
-        outcome,
-      });
-      return json(200, { outcome });
-    }
+    try {
+      // Dismiss — no Stripe, sandbox or live.
+      if (resolution === "dismiss") {
+        await ctx.runMutation(internal.widget.patchSession, {
+          id: session._id,
+          reason,
+          reasonText,
+          outcome: "abandoned",
+        });
+        return json(200, { outcome: "abandoned" });
+      }
 
-    // Live resolutions.
-    if (resolution === "cancel") {
-      const result = await ctx.runAction(internal.deflect.cancelSubscription, {
+      // Sandbox sessions mutate nothing in Stripe.
+      if (session.sandbox) {
+        const outcome =
+          resolution === "cancel"
+            ? ("canceled" as const)
+            : session.offerType === "pause"
+              ? ("saved_pause" as const)
+              : ("saved_coupon" as const);
+        await ctx.runMutation(internal.widget.patchSession, {
+          id: session._id,
+          reason,
+          reasonText,
+          outcome,
+        });
+        return json(200, { outcome });
+      }
+
+      // Live resolutions.
+      if (resolution === "cancel") {
+        const result = await ctx.runAction(internal.deflect.cancelSubscription, {
+          stripeAccountId: account.stripeAccountId,
+          subscriptionId: session.stripeSubscriptionId,
+          sessionId: session._id,
+          atPeriodEnd: !account.offerConfig.cancelImmediately,
+        });
+        if (!result.ok) {
+          if (result.code === "already_canceled") {
+            await ctx.runMutation(internal.widget.patchSession, {
+              id: session._id,
+              reason,
+              reasonText,
+              outcome: "canceled",
+            });
+            return json(409, {
+              error: "This subscription is already canceled.",
+              code: "stripe_error",
+            });
+          }
+          return json(409, { error: result.message, code: "stripe_error" });
+        }
+        await ctx.runMutation(internal.widget.patchSession, {
+          id: session._id,
+          reason,
+          reasonText,
+          outcome: "canceled",
+        });
+        return json(200, {
+          outcome: "canceled",
+          detail: { endsAt: result.endsAt },
+        });
+      }
+
+      // accept_offer
+      if (session.offerType === "pause") {
+        const days =
+          parseInt(session.offerDetail?.match(/pause_(\d+)d/)?.[1] ?? "", 10) ||
+          account.offerConfig.pauseDays;
+        const result = await ctx.runAction(internal.deflect.pauseSubscription, {
+          stripeAccountId: account.stripeAccountId,
+          subscriptionId: session.stripeSubscriptionId,
+          sessionId: session._id,
+          days,
+        });
+        if (!result.ok) {
+          await captureException(new Error(`pause failed: ${result.code}`), {
+            sessionId: session._id,
+          });
+          return json(409, {
+            error:
+              result.code === "already_canceled"
+                ? "This subscription is already canceled."
+                : result.code === "already_paused"
+                  ? "This subscription is already paused."
+                  : result.message,
+            code: "stripe_error",
+          });
+        }
+        await ctx.runMutation(internal.widget.patchSession, {
+          id: session._id,
+          reason,
+          reasonText,
+          outcome: "saved_pause",
+        });
+        await ctx.scheduler.runAfter(0, internal.emails.sendSaveEmail, {
+          sessionId: session._id,
+        });
+        return json(200, {
+          outcome: "saved_pause",
+          detail: { resumesAt: result.resumesAt },
+        });
+      }
+
+      // coupon offer
+      const result = await ctx.runAction(internal.deflect.applyCoupon, {
         stripeAccountId: account.stripeAccountId,
         subscriptionId: session.stripeSubscriptionId,
         sessionId: session._id,
+        couponId: session.offerDetail ?? "",
       });
       if (!result.ok) {
-        if (result.code === "already_canceled") {
+        await captureException(new Error(`coupon failed: ${result.code}`), {
+          sessionId: session._id,
+        });
+        if (result.code === "expired_coupon") {
+          // § 11: re-offer the pause. Swap the session's offer so a subsequent
+          // accept executes the pause, and hand the embed the fallback offer.
+          const days = account.offerConfig.pauseDays;
           await ctx.runMutation(internal.widget.patchSession, {
             id: session._id,
             reason,
             reasonText,
-            outcome: "canceled",
+            offerType: "pause",
+            offerDetail: `pause_${days}d`,
           });
           return json(409, {
-            error: "This subscription is already canceled.",
+            error:
+              "That discount expired between opening and accepting — sorry. Your subscription is unchanged.",
             code: "stripe_error",
+            conflict: "expired_coupon",
+            fallbackOffer: {
+              type: "pause",
+              days,
+              resumesAt: new Date(Date.now() + days * 86400_000).toISOString(),
+            },
           });
         }
         return json(409, { error: result.message, code: "stripe_error" });
@@ -299,100 +395,19 @@ http.route({
         id: session._id,
         reason,
         reasonText,
-        outcome: "canceled",
-      });
-      return json(200, { outcome: "canceled" });
-    }
-
-    // accept_offer
-    if (session.offerType === "pause") {
-      const days =
-        parseInt(session.offerDetail?.match(/pause_(\d+)d/)?.[1] ?? "", 10) ||
-        account.offerConfig.pauseDays;
-      const result = await ctx.runAction(internal.deflect.pauseSubscription, {
-        stripeAccountId: account.stripeAccountId,
-        subscriptionId: session.stripeSubscriptionId,
-        sessionId: session._id,
-        days,
-      });
-      if (!result.ok) {
-        await captureException(new Error(`pause failed: ${result.code}`), {
-          sessionId: session._id,
-        });
-        return json(409, {
-          error:
-            result.code === "already_canceled"
-              ? "This subscription is already canceled."
-              : result.code === "already_paused"
-                ? "This subscription is already paused."
-                : result.message,
-          code: "stripe_error",
-        });
-      }
-      await ctx.runMutation(internal.widget.patchSession, {
-        id: session._id,
-        reason,
-        reasonText,
-        outcome: "saved_pause",
+        outcome: "saved_coupon",
       });
       await ctx.scheduler.runAfter(0, internal.emails.sendSaveEmail, {
         sessionId: session._id,
       });
       return json(200, {
-        outcome: "saved_pause",
-        detail: { resumesAt: result.resumesAt },
+        outcome: "saved_coupon",
+        detail: { newAmountCents: result.newAmountCents },
       });
+    } finally {
+      // no-op once an outcome is set; frees the session if Stripe failed
+      await ctx.runMutation(internal.widget.releaseSession, { id: session._id });
     }
-
-    // coupon offer
-    const result = await ctx.runAction(internal.deflect.applyCoupon, {
-      stripeAccountId: account.stripeAccountId,
-      subscriptionId: session.stripeSubscriptionId,
-      sessionId: session._id,
-      couponId: session.offerDetail ?? "",
-    });
-    if (!result.ok) {
-      await captureException(new Error(`coupon failed: ${result.code}`), {
-        sessionId: session._id,
-      });
-      if (result.code === "expired_coupon") {
-        // § 11: re-offer the pause. Swap the session's offer so a subsequent
-        // accept executes the pause, and hand the embed the fallback offer.
-        const days = account.offerConfig.pauseDays;
-        await ctx.runMutation(internal.widget.patchSession, {
-          id: session._id,
-          reason,
-          reasonText,
-          offerType: "pause",
-          offerDetail: `pause_${days}d`,
-        });
-        return json(409, {
-          error:
-            "That discount expired between opening and accepting — sorry. Your subscription is unchanged.",
-          code: "stripe_error",
-          conflict: "expired_coupon",
-          fallbackOffer: {
-            type: "pause",
-            days,
-            resumesAt: new Date(Date.now() + days * 86400_000).toISOString(),
-          },
-        });
-      }
-      return json(409, { error: result.message, code: "stripe_error" });
-    }
-    await ctx.runMutation(internal.widget.patchSession, {
-      id: session._id,
-      reason,
-      reasonText,
-      outcome: "saved_coupon",
-    });
-    await ctx.scheduler.runAfter(0, internal.emails.sendSaveEmail, {
-      sessionId: session._id,
-    });
-    return json(200, {
-      outcome: "saved_coupon",
-      detail: { newAmountCents: result.newAmountCents },
-    });
   }),
 });
 
@@ -544,8 +559,12 @@ http.route({
         // unknown platform events: 200 no-op
       }
     } catch (err) {
-      // Ledger row exists; Stripe will not retry a 200. Capture loudly.
+      // Drop the ledger row and 500 so Stripe retries; handlers are idempotent.
       await captureException(err, { eventId: event.id, type: event.type });
+      await ctx.runMutation(internal.webhooks.deleteEvent, {
+        stripeEventId: event.id,
+      });
+      return new Response("handler failed", { status: 500 });
     }
     return new Response("ok", { status: 200 });
   }),

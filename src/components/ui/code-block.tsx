@@ -12,23 +12,22 @@ export function CodeBlock({ code, label }: { code: string; label?: string }) {
   }
 
   return (
-    <div className="rounded-sm border border-border bg-surface">
-      {label && (
-        <div className="border-b border-border px-4 py-2 text-xs font-medium tracking-wide text-muted">
-          {label}
-        </div>
-      )}
-      <div className="relative">
-        <pre className="overflow-x-auto p-4 font-mono text-sm leading-normal text-on-surface">
-          <code>{code}</code>
-        </pre>
+    <div className="overflow-hidden rounded-lg bg-ink text-white shadow-[var(--shadow-lift)]">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2.5">
+        <span className="text-[13px] text-[#AAB6C8]">{label}</span>
         <button
           onClick={copy}
-          className="absolute right-2 top-2 rounded-sm border border-border bg-surface px-2 py-1 text-xs text-muted hover:text-on-surface"
+          aria-live="polite"
+          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+            copied ? "bg-jade text-white" : "bg-white/10 text-white hover:bg-white/20"
+          }`}
         >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
+      <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed text-[#E4EAF3]">
+        <code>{code}</code>
+      </pre>
     </div>
   );
 }
